@@ -1,0 +1,182 @@
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import {
+  Wine, Martini, Beer, Coffee, Flower2, ChevronLeft, Shuffle, Clock, BarChart,
+} from "lucide-react";
+
+const CocktailCompanion = () => {
+  const [currentScreen, setCurrentScreen] = useState("home");
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [recipes, setRecipes] = useState([]);
+  const [selectedRecipe, setSelectedRecipe] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const liquorTypes = [
+    { name: "Vodka", icon: Wine },
+    { name: "Gin", icon: Martini },
+    { name: "Rum", icon: Beer },
+    { name: "Whiskey", icon: Coffee },
+    { name: "Tequila", icon: Flower2 },
+  ];
+
+  // Fetch recipes from TheCocktailDB
+  const fetchRecipes = async (liquor) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await axios.get(
+        `https://www.thecocktaildb.com/api/json/v1/1/filter.php?i=${liquor}`
+      );
+      const drinks = response.data.drinks || [];
+      setRecipes(drinks);
+    } catch (err) {
+      setError("Failed to load recipes. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch detailed recipe information
+  const fetchRecipeDetails = async (id) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await axios.get(
+        `https://www.thecocktaildb.com/api/json/v1/1/lookup.php?i=${id}`
+      );
+      const drink = response.data.drinks[0];
+      setSelectedRecipe({
+        name: drink.strDrink,
+        description: drink.strInstructions,
+        prepTime: "Varies", // No API field; placeholder
+        difficulty: "Medium", // Placeholder; logic for difficulty could be added later
+        ingredients: Object.keys(drink)
+          .filter((key) => key.startsWith("strIngredient") && drink[key])
+          .map((key, index) => ({
+            item: drink[key],
+            amount: drink[`strMeasure${index + 1}`] || "As needed",
+          })),
+        instructions: drink.strInstructions,
+      });
+    } catch (err) {
+      setError("Failed to load recipe details. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const RecipeDetail = ({ recipe }) => (
+    <div className="p-6">
+      <button
+        onClick={() => setCurrentScreen("recipes")}
+        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+      >
+        <ChevronLeft size={24} className="text-gray-600" />
+      </button>
+
+      <h1 className="text-2xl font-bold mb-2">{recipe.name}</h1>
+      <p className="text-gray-600 mb-4">{recipe.description}</p>
+
+      <div className="flex gap-4 mb-6">
+        <div className="flex items-center gap-2">
+          <Clock size={18} className="text-gray-500" />
+          <span className="text-sm text-gray-600">{recipe.prepTime}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <BarChart size={18} className="text-gray-500" />
+          <span className="text-sm text-yellow-600">{recipe.difficulty}</span>
+        </div>
+      </div>
+
+      <div className="bg-gray-50 rounded-xl p-4 mb-6">
+        <h2 className="text-lg font-medium mb-3">Ingredients</h2>
+        <ul className="space-y-2">
+          {recipe.ingredients.map((ing, index) => (
+            <li key={index} className="flex justify-between text-gray-700">
+              <span>{ing.item}</span>
+              <span className="text-gray-500 font-medium">{ing.amount}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="bg-gray-50 rounded-xl p-4">
+        <h2 className="text-lg font-medium mb-3">Instructions</h2>
+        <p className="text-gray-700">{recipe.instructions}</p>
+      </div>
+    </div>
+  );
+
+  const RecipeList = () => {
+    return (
+      <div className="p-6">
+        <button
+          onClick={() => setCurrentScreen("home")}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <ChevronLeft size={24} className="text-gray-600" />
+        </button>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">
+          {selectedCategory} Cocktails
+        </h2>
+        {isLoading ? (
+          <p>Loading recipes...</p>
+        ) : error ? (
+          <p className="text-red-600">{error}</p>
+        ) : recipes.length === 0 ? (
+          <p className="text-gray-600">No recipes found for {selectedCategory}.</p>
+        ) : (
+          <div className="grid gap-4">
+            {recipes.map((recipe) => (
+              <button
+                key={recipe.idDrink}
+                onClick={() => {
+                  fetchRecipeDetails(recipe.idDrink);
+                  setCurrentScreen("detail");
+                }}
+                className="p-4 rounded-xl border-2 border-gray-200 hover:border-blue-300 transition-all hover:shadow-md"
+              >
+                <h3 className="font-medium text-gray-900">{recipe.strDrink}</h3>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const HomeScreen = () => (
+    <div className="p-6">
+      <h1 className="text-3xl font-bold mb-2 text-gray-900">Cocktail Companion</h1>
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        {liquorTypes.map((category) => (
+          <button
+            key={category.name}
+            onClick={() => {
+              setSelectedCategory(category.name);
+              fetchRecipes(category.name);
+              setCurrentScreen("recipes");
+            }}
+            className="p-6 rounded-xl border-2 border-gray-200 hover:border-blue-300 flex flex-col items-center transition-all hover:scale-102 hover:shadow-md"
+          >
+            <category.icon size={48} className="mb-3 text-gray-600" />
+            <span className="font-medium text-gray-900">{category.name}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="max-w-md mx-auto bg-white min-h-screen">
+      {currentScreen === "home" && <HomeScreen />}
+      {currentScreen === "recipes" && <RecipeList />}
+      {currentScreen === "detail" && selectedRecipe && <RecipeDetail recipe={selectedRecipe} />}
+    </div>
+  );
+};
+
+export default CocktailCompanion;
