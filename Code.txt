@@ -22,6 +22,7 @@ const CocktailCompanion = () => {
 
   // Fetch recipes from TheCocktailDB
   const fetchRecipes = async (liquor) => {
+    console.log(`Fetching recipes for liquor: ${liquor}`); // Debug: Log liquor being searched
     setIsLoading(true);
     setError(null);
 
@@ -29,9 +30,17 @@ const CocktailCompanion = () => {
       const response = await axios.get(
         `https://www.thecocktaildb.com/api/json/v1/1/filter.php?i=${liquor}`
       );
+      console.log("API Response for fetchRecipes:", response.data); // Debug: Log API response
+
       const drinks = response.data.drinks || [];
+      if (drinks.length === 0) {
+        console.log(`No recipes found for ${liquor}.`); // Debug: No recipes case
+        setError(`No recipes found for ${liquor}.`);
+      }
+
       setRecipes(drinks);
     } catch (err) {
+      console.error("Error fetching recipes:", err.response || err.message); // Debug: Log API error
       setError("Failed to load recipes. Please try again.");
     } finally {
       setIsLoading(false);
@@ -40,6 +49,7 @@ const CocktailCompanion = () => {
 
   // Fetch detailed recipe information
   const fetchRecipeDetails = async (id) => {
+    console.log(`Fetching recipe details for ID: ${id}`); // Debug: Log recipe ID
     setIsLoading(true);
     setError(null);
 
@@ -47,21 +57,29 @@ const CocktailCompanion = () => {
       const response = await axios.get(
         `https://www.thecocktaildb.com/api/json/v1/1/lookup.php?i=${id}`
       );
-      const drink = response.data.drinks[0];
-      setSelectedRecipe({
-        name: drink.strDrink,
-        description: drink.strInstructions,
-        prepTime: "Varies", // No API field; placeholder
-        difficulty: "Medium", // Placeholder; logic for difficulty could be added later
-        ingredients: Object.keys(drink)
-          .filter((key) => key.startsWith("strIngredient") && drink[key])
-          .map((key, index) => ({
-            item: drink[key],
-            amount: drink[`strMeasure${index + 1}`] || "As needed",
-          })),
-        instructions: drink.strInstructions,
-      });
+      console.log("API Response for fetchRecipeDetails:", response.data); // Debug: Log API response
+
+      if (response.data && response.data.drinks && response.data.drinks[0]) {
+        const drink = response.data.drinks[0];
+        setSelectedRecipe({
+          name: drink.strDrink,
+          description: drink.strInstructions,
+          prepTime: "Varies", // No API field; placeholder
+          difficulty: "Medium", // Placeholder; logic for difficulty could be added later
+          ingredients: Object.keys(drink)
+            .filter((key) => key.startsWith("strIngredient") && drink[key])
+            .map((key, index) => ({
+              item: drink[key],
+              amount: drink[`strMeasure${index + 1}`] || "As needed",
+            })),
+          instructions: drink.strInstructions,
+        });
+      } else {
+        console.log(`No details found for recipe ID: ${id}`); // Debug: No details case
+        setError("Recipe details not found.");
+      }
     } catch (err) {
+      console.error("Error fetching recipe details:", err.response || err.message); // Debug: Log API error
       setError("Failed to load recipe details. Please try again.");
     } finally {
       setIsLoading(false);
@@ -156,6 +174,7 @@ const CocktailCompanion = () => {
           <button
             key={category.name}
             onClick={() => {
+              console.log(`Selected category: ${category.name}`); // Debug: Log selected category
               setSelectedCategory(category.name);
               fetchRecipes(category.name);
               setCurrentScreen("recipes");
